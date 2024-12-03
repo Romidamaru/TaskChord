@@ -22,7 +22,12 @@ func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.Intera
 		options := i.ApplicationCommandData().Options
 		title := options[0].StringValue()
 		description := options[1].StringValue()
-		priority := options[2].StringValue()
+
+		priority := "Medium"  // Default value
+		if len(options) > 2 { // Check if the priority option is provided
+			priority = options[2].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
+		}
+
 		userID := i.Interaction.Member.User.ID
 
 		// Add task to the database using the task service

@@ -9,22 +9,36 @@ func RegisterCommands(s *discordgo.Session) error {
 			Description: "Create a new task",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
+					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "title",
 					Description: "Title of the task",
-					Type:        discordgo.ApplicationCommandOptionString,
 					Required:    true,
 				},
 				{
+					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "description",
 					Description: "Description of the task",
-					Type:        discordgo.ApplicationCommandOptionString,
 					Required:    true,
 				},
 				{
-					Name:        "priority",
-					Description: "Priority of the task (High, Medium, Low)",
 					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "priority",
+					Description: "Priority of the task",
 					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "High",
+							Value: "high",
+						},
+						{
+							Name:  "Medium",
+							Value: "medium",
+						},
+						{
+							Name:  "Low",
+							Value: "low",
+						},
+					},
 				},
 			},
 		},
