@@ -28,15 +28,15 @@ func RegisterCommands(s *discordgo.Session) error {
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{
 							Name:  "High",
-							Value: "high",
+							Value: "High",
 						},
 						{
 							Name:  "Medium",
-							Value: "medium",
+							Value: "Medium",
 						},
 						{
 							Name:  "Low",
-							Value: "low",
+							Value: "Low",
 						},
 					},
 				},
