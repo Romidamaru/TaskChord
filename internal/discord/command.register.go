@@ -42,6 +42,10 @@ func RegisterCommands(s *discordgo.Session) error {
 				},
 			},
 		},
+		{
+			Name:        "show",
+			Description: "Show all your tasks",
+		},
 	}
 
 	// Register the commands

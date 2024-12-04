@@ -1,8 +1,9 @@
 package ctrl
 
 import (
-	"TaskChord/internal/pkg/task/svc"
 	"log"
+	"taskchord/internal/pkg/task/ent"
+	"taskchord/internal/pkg/task/svc"
 )
 
 type TaskController struct {
@@ -22,4 +23,9 @@ func (c *TaskController) CreateTask(userID, title, description, priority string)
 	}
 
 	return err
+}
+
+// GetTasksByUserID retrieves tasks for a specific user
+func (c *TaskController) GetTasksByUserID(userID string) ([]ent.Task, error) {
+	return c.taskService.GetTasksByUserID(userID)
 }

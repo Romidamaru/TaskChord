@@ -37,7 +37,7 @@ func (b *Bot) Start() error {
 	}
 
 	//log.Println("Bot session opened. Cleaning up old commands...")
-
+	//
 	//// Delete old commands
 	//err = b.DeleteCommands()
 	//if err != nil {

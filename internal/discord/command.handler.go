@@ -1,9 +1,10 @@
 package discord
 
 import (
-	"TaskChord/internal/pkg/task/ctrl"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"strconv"
+	"taskchord/internal/pkg/task/ctrl"
 )
 
 type CommandHandler struct {
@@ -17,6 +18,16 @@ func NewCommandHandler(taskController ctrl.TaskController) *CommandHandler {
 
 // HandleCommand processes the commands issued by users
 func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	switch i.ApplicationCommandData().Name {
+	case "create":
+		h.handleCreateCommand(s, i)
+	case "show":
+		h.handleShowCommand(s, i)
+	}
+}
+
+// HandleCreateCommand processes the commands issued by users
+func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Ensure we're handling the `/create` command
 	if i.ApplicationCommandData().Name == "create" {
 		options := i.ApplicationCommandData().Options
@@ -51,4 +62,60 @@ func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.Intera
 			},
 		})
 	}
+}
+
+func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	userID := i.Interaction.Member.User.ID
+
+	// Retrieve tasks from the database
+	tasks, err := h.taskController.GetTasksByUserID(userID)
+	if err != nil {
+		log.Printf("Error fetching tasks: %v", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Failed to fetch tasks. Please try again later.",
+			},
+		})
+		return
+	}
+
+	// Create embed response
+	embed := &discordgo.MessageEmbed{
+		Title:  "Your Tasks:",
+		Color:  0x00FF00, // Green color
+		Fields: []*discordgo.MessageEmbedField{},
+	}
+
+	if len(tasks) == 0 {
+		embed.Description = "You have no tasks!"
+	} else {
+		for i, task := range tasks {
+			// Convert task.ID (uint) to string
+			taskIDStr := strconv.FormatUint(uint64(task.ID), 10)
+
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name:   "**#" + taskIDStr + " " + task.Title + "**", // Include task ID in the field name
+				Value:  "Priority: " + string(task.Priority) + "\n**Description:**\n" + task.Description,
+				Inline: false,
+			})
+
+			// Add a separator for all tasks except the last one
+			if i < len(tasks)-1 {
+				embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+					Name:   "\u200B",
+					Value:  "──────────────",
+					Inline: false,
+				})
+			}
+		}
+	}
+
+	// Respond with the embed
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
 }

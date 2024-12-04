@@ -1,17 +1,16 @@
 package main
 
 import (
-	"TaskChord/internal/discord"
-	"TaskChord/internal/pkg/task/ctrl"
-	taskEnt "TaskChord/internal/pkg/task/ent"
-	"TaskChord/internal/pkg/task/svc"
-	"TaskChord/internal/pkg/user/ent"
 	"github.com/joho/godotenv"
 	gossiper "github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"taskchord/internal/discord"
+	"taskchord/internal/pkg/task/ctrl"
+	taskEnt "taskchord/internal/pkg/task/ent"
+	"taskchord/internal/pkg/task/svc"
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 		gossiper.PostgresDB,
 		dsn,
 		true,
-		[]any{ent.User{}, taskEnt.Task{}},
+		[]any{taskEnt.Task{}},
 	)
 	if err != nil {
 		log.Fatalf("Failed to create database instance: %v", err)

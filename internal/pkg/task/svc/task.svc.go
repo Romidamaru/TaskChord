@@ -1,8 +1,8 @@
 package svc
 
 import (
-	"TaskChord/internal/pkg/task/ent"
 	gossiper "github.com/pieceowater-dev/lotof.lib.gossiper/v2"
+	"taskchord/internal/pkg/task/ent"
 )
 
 type TaskService struct {
@@ -24,4 +24,11 @@ func (s *TaskService) CreateTask(userID, title, description, priority string) er
 	}
 
 	return s.db.GetDB().Create(&task).Error
+}
+
+// GetTasksByUserID retrieves tasks for a specific user from the database
+func (s *TaskService) GetTasksByUserID(userID string) ([]ent.Task, error) {
+	var tasks []ent.Task
+	err := s.db.GetDB().Where("user_id = ?", userID).Find(&tasks).Error
+	return tasks, err
 }
