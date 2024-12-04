@@ -7,6 +7,11 @@ import (
 	"taskchord/internal/pkg/task/ctrl"
 )
 
+// TODO
+// delete task by user id
+// show only one task by id
+// bind task to guild id (discord)
+
 type CommandHandler struct {
 	taskController ctrl.TaskController
 }
