@@ -55,6 +55,50 @@ func RegisterCommands(s *discordgo.Session) error {
 			},
 		},
 		{
+			Name:        "update",
+			Description: "Update a task by id",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "id",
+					Description: "ID of task",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "title",
+					Description: "Title of the task",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "description",
+					Description: "Description of the task",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "priority",
+					Description: "Priority of the task",
+					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "High",
+							Value: "High",
+						},
+						{
+							Name:  "Medium",
+							Value: "Medium",
+						},
+						{
+							Name:  "Low",
+							Value: "Low",
+						},
+					},
+				},
+			},
+		},
+		{
 			Name:        "delete",
 			Description: "Delete your task by ID",
 			Options: []*discordgo.ApplicationCommandOption{

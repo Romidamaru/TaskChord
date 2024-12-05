@@ -28,6 +28,18 @@ func (c *TaskController) CreateTask(guildID, userID, title, description, priorit
 	return taskIdInGuild, nil
 }
 
+func (c *TaskController) UpdateTask(guildID, userID, title, description, priority string, id string) (int, error) {
+	// Call the service layer to create the task and return the taskIdInGuild
+	taskIdInGuild, err := c.taskService.UpdateTask(guildID, userID, title, description, priority, id)
+	if err != nil {
+		log.Println("Controller error:", err)
+		return 0, err
+	}
+
+	// Return the taskIdInGuild along with nil error
+	return taskIdInGuild, nil
+}
+
 // GetTasksByUserID retrieves tasks for a specific user
 func (c *TaskController) GetTasksByUserID(guildID string, userID string, id string) ([]ent.Task, error) {
 	return c.taskService.GetTasksByUserID(guildID, userID, id)

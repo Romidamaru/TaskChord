@@ -68,6 +68,48 @@ func (s *TaskService) CreateTask(guildID, userID, title, description, priority s
 	return createdTask.TaskIdInGuild, nil
 }
 
+func (s *TaskService) UpdateTask(guildID, userID, title, description, priority string, id string) (int, error) {
+	// Start a transaction to ensure atomicity
+	err := s.db.GetDB().Transaction(func(tx *gorm.DB) error {
+		// Find the highest TaskIdInGuild for the guild
+		err := tx.Model(&ent.Task{}).
+			Where("guild_id = ? AND task_id_in_guild = ?", guildID, id).
+			Select("COALESCE(MAX(task_id_in_guild), 0)")
+		if err != nil {
+			return nil
+		}
+
+		// Update task
+		task := ent.Task{
+			Title:       title,
+			Description: description,
+			Priority:    ent.Priority(priority),
+		}
+
+		// Save task
+		if err := tx.First(&task).Error; err != nil {
+			return err
+		}
+
+		// Ensure the task is updated and its ID is available before we return
+		return nil
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	// Now retrieve the TaskIdInGuild from the newly created task
+	var updatedTask ent.Task
+	err = s.db.GetDB().Where("guild_id = ? AND user_id = ? AND title = ?", guildID, userID, title).First(&updatedTask).Error
+	if err != nil {
+		return 0, err
+	}
+
+	// Return the ID of the newly created task
+	return updatedTask.TaskIdInGuild, nil
+}
+
 // GetTasksByUserID retrieves tasks for a specific user from the database
 func (s *TaskService) GetTasksByUserID(guildID string, userID string, id string) ([]ent.Task, error) {
 	var tasks []ent.Task

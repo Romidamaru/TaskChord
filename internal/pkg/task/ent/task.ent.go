@@ -2,6 +2,7 @@ package ent
 
 import (
 	"gorm.io/gorm"
+	"time"
 )
 
 // Priority represents the allowed values for the Priority field.
@@ -36,4 +37,11 @@ type Task struct {
 	Title         string   `gorm:"not null" json:"title"`                             // Title of the task
 	Priority      Priority `gorm:"type:varchar(20);default:'Medium'" json:"priority"` // Priority of the task (High, Medium, Low)
 	Description   string   `gorm:"type:text" json:"description"`                      // Task description
+}
+
+type TaskMeta struct {
+	gorm.Model
+	Deadline  time.Time `json:"deadline"`
+	Estimated uint      `json:"estimated"` //TODO: make notifier when deadline - estimated time
+	Reminder  time.Time `json:"reminder"`  //TODO: make presets for reminder: 10 min, 15, 30, 60, day, custom
 }

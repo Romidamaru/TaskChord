@@ -9,7 +9,6 @@ import (
 )
 
 // TODO
-// correct text for tasks deletion
 // add reminder and deadlines for tasks (optional), estimated time for task (optional)
 // author and executor. Executor and Author can see same task if they bind to it
 
@@ -31,6 +30,8 @@ func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.Intera
 		h.handleShowCommand(s, i)
 	case "delete":
 		h.handleDeleteCommand(s, i)
+	case "update":
+		h.handleUpdateCommand(s, i)
 	}
 }
 
@@ -70,6 +71,53 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00, // Green color
 		Description: "Task **#" + taskIDStr + " " + title + "** successfully created!",
+	}
+
+	// Respond to the user with the embed
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+			Flags:  discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	userID := i.Interaction.Member.User.ID
+	guildID := i.GuildID
+	var priority string
+
+	options := i.ApplicationCommandData().Options
+	id := options[0].StringValue()
+	title := options[1].StringValue()
+	description := options[2].StringValue()
+
+	if len(options) > 3 { // Check if the priority option is provided
+		priority = options[3].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
+	}
+
+	// Add task to the database using the task service
+	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
+	if err != nil {
+		log.Printf("Error creating task: %v", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Failed to update task. Please try again later.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Respond to the user
+	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
+
+	// Create the embed message
+	embed := &discordgo.MessageEmbed{
+		Color:       0x00FF00, // Green color
+		Description: "Task **#" + taskIDStr + " " + title + "** successfully updated!",
 	}
 
 	// Respond to the user with the embed
