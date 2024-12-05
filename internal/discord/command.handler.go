@@ -45,9 +45,10 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		}
 
 		userID := i.Interaction.Member.User.ID
+		guildID := i.GuildID
 
 		// Add task to the database using the task service
-		err := h.taskController.CreateTask(userID, title, description, priority)
+		taskIdInGuild, err := h.taskController.CreateTask(guildID, userID, title, description, priority)
 		if err != nil {
 			log.Printf("Error creating task: %v", err)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -60,10 +61,19 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		}
 
 		// Respond to the user
+		taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
+
+		// Create the embed message
+		embed := &discordgo.MessageEmbed{
+			Color:       0x00FF00, // Green color
+			Description: "Task **#" + taskIDStr + " " + title + "** successfully created!",
+		}
+
+		// Respond to the user with the embed
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Task successfully created!",
+				Embeds: []*discordgo.MessageEmbed{embed},
 			},
 		})
 	}
@@ -71,9 +81,10 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 
 func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	userID := i.Interaction.Member.User.ID
+	guildID := i.GuildID
 
 	// Retrieve tasks from the database
-	tasks, err := h.taskController.GetTasksByUserID(userID)
+	tasks, err := h.taskController.GetTasksByUserID(guildID, userID)
 	if err != nil {
 		log.Printf("Error fetching tasks: %v", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -97,7 +108,7 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 	} else {
 		for i, task := range tasks {
 			// Convert task.ID (uint) to string
-			taskIDStr := strconv.FormatUint(uint64(task.ID), 10)
+			taskIDStr := strconv.FormatUint(uint64(task.TaskIdInGuild), 10)
 
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   "**#" + taskIDStr + " " + task.Title + "**", // Include task ID in the field name

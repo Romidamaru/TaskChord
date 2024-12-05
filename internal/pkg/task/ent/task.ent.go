@@ -30,8 +30,10 @@ func (p Priority) String() string {
 // Task represents a task model for GORM
 type Task struct {
 	gorm.Model
-	UserID      string   `gorm:"not null" json:"user_id"`                           // Foreign key from User table
-	Title       string   `gorm:"not null" json:"title"`                             // Title of the task
-	Priority    Priority `gorm:"type:varchar(20);default:'Medium'" json:"priority"` // Priority of the task (High, Medium, Low)
-	Description string   `gorm:"type:text" json:"description"`                      // Task description (long text)
+	TaskIdInGuild int      `gorm:"not null" json:"task_id_in_guild"` // Task ID within a guild
+	UserID        string   `gorm:"not null" json:"user_id"`
+	GuildID       string   `gorm:"not null;index" json:"guild_id"`                    // Indexed for grouping tasks by guild
+	Title         string   `gorm:"not null" json:"title"`                             // Title of the task
+	Priority      Priority `gorm:"type:varchar(20);default:'Medium'" json:"priority"` // Priority of the task (High, Medium, Low)
+	Description   string   `gorm:"type:text" json:"description"`                      // Task description
 }

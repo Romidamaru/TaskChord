@@ -16,16 +16,19 @@ func NewTaskController(taskService *svc.TaskService) *TaskController {
 }
 
 // CreateTask delegates the task creation to the service layer
-func (c *TaskController) CreateTask(userID, title, description, priority string) error {
-	err := c.taskService.CreateTask(userID, title, description, priority)
+func (c *TaskController) CreateTask(guildID, userID, title, description, priority string) (int, error) {
+	// Call the service layer to create the task and return the taskIdInGuild
+	taskIdInGuild, err := c.taskService.CreateTask(guildID, userID, title, description, priority)
 	if err != nil {
-		log.Println("Controller error!", err)
+		log.Println("Controller error:", err)
+		return 0, err
 	}
 
-	return err
+	// Return the taskIdInGuild along with nil error
+	return taskIdInGuild, nil
 }
 
 // GetTasksByUserID retrieves tasks for a specific user
-func (c *TaskController) GetTasksByUserID(userID string) ([]ent.Task, error) {
-	return c.taskService.GetTasksByUserID(userID)
+func (c *TaskController) GetTasksByUserID(guildID string, userID string) ([]ent.Task, error) {
+	return c.taskService.GetTasksByUserID(guildID, userID)
 }
