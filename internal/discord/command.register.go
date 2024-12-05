@@ -54,6 +54,18 @@ func RegisterCommands(s *discordgo.Session) error {
 				},
 			},
 		},
+		{
+			Name:        "delete",
+			Description: "Delete your task by ID",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "id",
+					Description: "ID of task",
+					Required:    true,
+				},
+			},
+		},
 	}
 
 	// Register the commands

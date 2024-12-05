@@ -32,3 +32,13 @@ func (c *TaskController) CreateTask(guildID, userID, title, description, priorit
 func (c *TaskController) GetTasksByUserID(guildID string, userID string, id string) ([]ent.Task, error) {
 	return c.taskService.GetTasksByUserID(guildID, userID, id)
 }
+
+func (c *TaskController) DeleteTask(guildID string, userID string, id string) (string, error) {
+	taskIdInGuild, err := c.taskService.DeleteTask(guildID, userID, id)
+	if err != nil {
+		log.Println("Controller error:", err)
+		return "", err
+	}
+
+	return taskIdInGuild, nil
+}

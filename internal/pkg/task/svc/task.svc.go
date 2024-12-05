@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"fmt"
 	gossiper "github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 	"gorm.io/gorm"
 	"taskchord/internal/pkg/task/ent"
@@ -74,11 +75,32 @@ func (s *TaskService) GetTasksByUserID(guildID string, userID string, id string)
 
 	if id != "" { // Check if id is provided (non-empty string)
 		// If id is provided, fetch tasks with the specific task ID in the guild
-		err = s.db.GetDB().Where("user_id = ? AND guild_id = ? AND task_id_in_guild = ?", userID, guildID, id).Find(&tasks).Error
+		err = s.db.GetDB().
+			Where("user_id = ? AND guild_id = ? AND task_id_in_guild = ?", userID, guildID, id).Find(&tasks).Error
 	} else {
 		// If no id is provided, fetch all tasks for the user in the guild
-		err = s.db.GetDB().Where("user_id = ? AND guild_id = ?", userID, guildID).Find(&tasks).Error
+		err = s.db.GetDB().
+			Where("user_id = ? AND guild_id = ?", userID, guildID).Order("task_id_in_guild DESC").Find(&tasks).Error
 	}
 
 	return tasks, err
+}
+
+func (s *TaskService) DeleteTask(guildID string, userID string, id string) (string, error) {
+	// Find the task by guildID, userID, and task ID (taskIdInGuild)
+	var task ent.Task
+	err := s.db.GetDB().Where("guild_id = ? AND user_id = ? AND task_id_in_guild = ?", guildID, userID, id).First(&task).Error
+	if err != nil {
+		// Handle case where task is not found
+		return "", fmt.Errorf("task not found: %v", err)
+	}
+
+	// Delete the task from the database
+	err = s.db.GetDB().Delete(&task).Error
+	if err != nil {
+		return "", fmt.Errorf("error deleting task: %v", err)
+	}
+
+	// Return the ID of the deleted task
+	return id, nil
 }
