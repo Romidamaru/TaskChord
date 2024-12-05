@@ -29,6 +29,6 @@ func (c *TaskController) CreateTask(guildID, userID, title, description, priorit
 }
 
 // GetTasksByUserID retrieves tasks for a specific user
-func (c *TaskController) GetTasksByUserID(guildID string, userID string) ([]ent.Task, error) {
-	return c.taskService.GetTasksByUserID(guildID, userID)
+func (c *TaskController) GetTasksByUserID(guildID string, userID string, id string) ([]ent.Task, error) {
+	return c.taskService.GetTasksByUserID(guildID, userID, id)
 }

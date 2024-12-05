@@ -10,7 +10,7 @@ import (
 // TODO
 // delete task by user id
 // show only one task by id
-// bind task to guild id (discord)
+// add reminder and deadlines for tasks (optional)
 
 type CommandHandler struct {
 	taskController ctrl.TaskController
@@ -55,6 +55,7 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "Failed to create task. Please try again later.",
+					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
 			return
@@ -74,6 +75,7 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{embed},
+				Flags:  discordgo.MessageFlagsEphemeral,
 			},
 		})
 	}
@@ -83,14 +85,21 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 	userID := i.Interaction.Member.User.ID
 	guildID := i.GuildID
 
+	var id string
+	options := i.ApplicationCommandData().Options
+	if len(options) > 0 { // Check if the id option is provided
+		id = options[0].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
+	}
+
 	// Retrieve tasks from the database
-	tasks, err := h.taskController.GetTasksByUserID(guildID, userID)
+	tasks, err := h.taskController.GetTasksByUserID(guildID, userID, id)
 	if err != nil {
 		log.Printf("Error fetching tasks: %v", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Failed to fetch tasks. Please try again later.",
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		return
@@ -107,7 +116,7 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		embed.Description = "You have no tasks!"
 	} else {
 		for i, task := range tasks {
-			// Convert task.ID (uint) to string
+			// Convert TaskIdInGuild (int) to string
 			taskIDStr := strconv.FormatUint(uint64(task.TaskIdInGuild), 10)
 
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
@@ -132,6 +141,7 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
+			Flags:  discordgo.MessageFlagsEphemeral,
 		},
 	})
 }

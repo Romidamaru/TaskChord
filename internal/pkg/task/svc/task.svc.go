@@ -68,8 +68,17 @@ func (s *TaskService) CreateTask(guildID, userID, title, description, priority s
 }
 
 // GetTasksByUserID retrieves tasks for a specific user from the database
-func (s *TaskService) GetTasksByUserID(guildID string, userID string) ([]ent.Task, error) {
+func (s *TaskService) GetTasksByUserID(guildID string, userID string, id string) ([]ent.Task, error) {
 	var tasks []ent.Task
-	err := s.db.GetDB().Where("user_id = ? AND guild_id = ?", userID, guildID).Find(&tasks).Error
+	var err error
+
+	if id != "" { // Check if id is provided (non-empty string)
+		// If id is provided, fetch tasks with the specific task ID in the guild
+		err = s.db.GetDB().Where("user_id = ? AND guild_id = ? AND task_id_in_guild = ?", userID, guildID, id).Find(&tasks).Error
+	} else {
+		// If no id is provided, fetch all tasks for the user in the guild
+		err = s.db.GetDB().Where("user_id = ? AND guild_id = ?", userID, guildID).Find(&tasks).Error
+	}
+
 	return tasks, err
 }

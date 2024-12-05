@@ -45,6 +45,14 @@ func RegisterCommands(s *discordgo.Session) error {
 		{
 			Name:        "show",
 			Description: "Show all your tasks",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "id",
+					Description: "ID of task",
+					Required:    false,
+				},
+			},
 		},
 	}
 
