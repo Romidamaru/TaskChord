@@ -89,6 +89,15 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 	var priority string
 
 	options := i.ApplicationCommandData().Options
+	if len(options) == 0 { // TODO: fix panic
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Failed to update task. Please fill in the fields.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+	}
 	id := options[0].StringValue()
 	title := options[1].StringValue()
 	description := options[2].StringValue()
@@ -100,7 +109,7 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 	// Add task to the database using the task service
 	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
 	if err != nil {
-		log.Printf("Error creating task: %v", err)
+		log.Printf("Error updating task: %v", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
