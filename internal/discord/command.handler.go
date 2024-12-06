@@ -9,9 +9,6 @@ import (
 	"taskchord/internal/pkg/task/ctrl"
 )
 
-// TODO
-// 	add reminder and deadlines for tasks (optional), estimated time for task (optional)
-
 type CommandHandler struct {
 	taskController ctrl.TaskController
 }
