@@ -36,8 +36,8 @@ func (b *Bot) Start() error {
 		return err
 	}
 
-	//log.Println("Bot session opened. Cleaning up old commands...")
 	//// Delete old commands
+	//log.Println("Bot session opened. Cleaning up old commands...")
 	//err = b.DeleteCommands()
 	//if err != nil {
 	//	log.Printf("Failed to delete old commands: %v", err)
@@ -45,9 +45,8 @@ func (b *Bot) Start() error {
 	//	log.Println("Old commands deleted successfully.")
 	//}
 	//
-	//log.Println("Bot session opened. Registering commands...")
-	//
 	//// Register commands
+	//log.Println("Bot session opened. Registering commands...")
 	//err = RegisterCommands(b.Session)
 	//if err != nil {
 	//	log.Printf("Failed to register commands: %v", err)
@@ -55,7 +54,8 @@ func (b *Bot) Start() error {
 	//	log.Println("Commands registered successfully.")
 	//}
 
-	log.Println("Bot is running...")
+	log.Println("\033[32m" + "Bot is running..." + "\033[0m")
+
 	return nil
 }
 
