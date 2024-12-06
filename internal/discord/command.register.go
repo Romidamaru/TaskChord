@@ -62,7 +62,7 @@ func RegisterCommands(s *discordgo.Session) error {
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "id",
 					Description: "ID of task",
-					Required:    false,
+					Required:    true,
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,

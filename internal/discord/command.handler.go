@@ -84,52 +84,81 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 }
 
 func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in handleUpdateCommand: %v", r)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "An unexpected error occurred while processing your request. Please try again.",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+		}
+	}()
+
 	userID := i.Interaction.Member.User.ID
 	guildID := i.GuildID
-	var priority string
+	var id, title, description, priority string
 
 	options := i.ApplicationCommandData().Options
-	if len(options) == 0 { // TODO: fix panic
+	if len(options) == 0 {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Failed to update task. Please fill in the fields.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-	}
-	id := options[0].StringValue()
-	title := options[1].StringValue()
-	description := options[2].StringValue()
-
-	if len(options) > 3 { // Check if the priority option is provided
-		priority = options[3].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
-	}
-
-	// Add task to the database using the task service
-	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
-	if err != nil {
-		log.Printf("Error updating task: %v", err)
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Failed to update task. Please try again later.",
+				Content: "Failed to update task. Please provide at least one field to update.",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		return
 	}
 
-	// Respond to the user
-	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
+	// Validate and assign options
+	id = options[0].StringValue()
+	if len(options) > 1 {
+		title = options[1].StringValue()
+	}
+	if len(options) > 2 {
+		description = options[2].StringValue()
+	}
+	if len(options) > 3 {
+		priority = options[3].StringValue()
+	}
 
-	// Create the embed message
+	// Call the controller to update the task
+	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
+	if err != nil {
+		// Customize the response based on the error message
+		var responseMessage string
+		switch err.Error() {
+		case "task ID is required":
+			responseMessage = "Failed to update task. Task ID is required."
+		case "at least one field (title, description, or priority) must be provided for update":
+			responseMessage = "Failed to update task. Please provide at least one field (title, description, or priority) to update."
+		case "invalid priority value":
+			responseMessage = "Failed to update task. Priority value must be 'High', 'Medium', or 'Low'."
+		default:
+			responseMessage = "Failed to update task. Please try again later."
+		}
+
+		log.Printf("Error updating task: %v", err)
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: responseMessage,
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Respond to the user with the successful update
+	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00, // Green color
 		Description: "Task **#" + taskIDStr + " " + title + "** successfully updated!",
 	}
 
-	// Respond to the user with the embed
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
