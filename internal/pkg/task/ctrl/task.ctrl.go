@@ -29,7 +29,7 @@ func (c *TaskController) CreateTask(guildID, userID, title, description, priorit
 	return taskIdInGuild, nil
 }
 
-func (c *TaskController) UpdateTask(guildID, userID, title, description, priority, id string) (int, error) {
+func (c *TaskController) UpdateTask(guildID, userID, title, description, priority, executorID, id string) (int, error) {
 	// Validate the task ID
 	if id == "" {
 		log.Println("Controller error: Task ID is required")
@@ -37,9 +37,9 @@ func (c *TaskController) UpdateTask(guildID, userID, title, description, priorit
 	}
 
 	// Ensure at least one field is provided for updating
-	if title == "" && description == "" && priority == "" {
-		log.Println("Controller error: At least one field (title, description, or priority) must be provided for update")
-		return 0, fmt.Errorf("at least one field (title, description, or priority) must be provided for update")
+	if title == "" && description == "" && priority == "" && executorID == "" {
+		log.Println("Controller error: At least one field (title, description, priority, or executor) must be provided for update")
+		return 0, fmt.Errorf("at least one field (title, description, priority, or executor) must be provided for update")
 	}
 
 	// Optional: Validate priority if provided
@@ -52,7 +52,7 @@ func (c *TaskController) UpdateTask(guildID, userID, title, description, priorit
 	}
 
 	// Call the service layer to update the task
-	taskIdInGuild, err := c.taskService.UpdateTask(guildID, userID, title, description, priority, id)
+	taskIdInGuild, err := c.taskService.UpdateTask(guildID, userID, title, description, priority, executorID, id)
 	if err != nil {
 		log.Println("Controller error:", err)
 		return 0, err

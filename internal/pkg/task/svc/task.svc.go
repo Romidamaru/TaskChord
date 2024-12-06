@@ -70,7 +70,7 @@ func (s *TaskService) CreateTask(guildID, userID, title, description, priority s
 	return createdTask.TaskIdInGuild, nil
 }
 
-func (s *TaskService) UpdateTask(guildID, userID, title, description, priority, id string) (int, error) {
+func (s *TaskService) UpdateTask(guildID, userID, title, description, priority, executorID, id string) (int, error) {
 	// Start a transaction to ensure atomicity
 	err := s.db.GetDB().Transaction(func(tx *gorm.DB) error {
 		// Fetch the existing task by guild ID, user ID, and task ID
@@ -92,6 +92,9 @@ func (s *TaskService) UpdateTask(guildID, userID, title, description, priority, 
 		}
 		if priority != "" {
 			task.Priority = ent.Priority(priority)
+		}
+		if executorID != "" { // Update executor if provided
+			task.ExecutorID = executorID
 		}
 
 		// Save the changes

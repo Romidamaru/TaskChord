@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
@@ -10,7 +11,6 @@ import (
 
 // TODO
 // 	add reminder and deadlines for tasks (optional), estimated time for task (optional)
-// 	author and executor. Executor and Author can see same task if they bind to it
 
 type CommandHandler struct {
 	taskController ctrl.TaskController
@@ -106,7 +106,7 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 
 	userID := i.Interaction.Member.User.ID
 	guildID := i.GuildID
-	var id, title, description, priority string
+	var id, title, description, priority, executorID string
 
 	options := i.ApplicationCommandData().Options
 	if len(options) == 0 {
@@ -127,6 +127,7 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 	priority = "Medium" // Default priority
 	title = ""          // Default empty title
 	description = ""    // Default empty description
+	executorID = userID // Default executor is the user making the request
 
 	// Process optional fields dynamically
 	for _, opt := range options[1:] { // Skip the first option (task ID)
@@ -141,15 +142,20 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 			case "priority":
 				priority = opt.StringValue()
 			}
+		case discordgo.ApplicationCommandOptionUser:
+			// Handle executor (if user is provided)
+			if opt.Name == "executor" {
+				executorID = opt.UserValue(nil).ID
+			}
 		}
 	}
 
-	// Validate and assign the title, description, and priority if they are provided
-	if title == "" && description == "" && priority == "" {
+	// Validate and assign the title, description, priority, and executor
+	if title == "" && description == "" && priority == "" && executorID == userID {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Failed to update task. Please provide at least one field (title, description, or priority).",
+				Content: "Failed to update task. Please provide at least one field (title, description, priority, or executor).",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
@@ -157,7 +163,7 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 	}
 
 	// Call the controller to update the task with the dynamically provided fields
-	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
+	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, executorID, id)
 	if err != nil {
 		// Handle error based on the specific message
 		var responseMessage string
@@ -203,7 +209,8 @@ func GetNicknameFromID(userID string, s *discordgo.Session, guildID string) stri
 	}
 	member, err := s.GuildMember(guildID, userID)
 	if err != nil {
-		if discordErr, ok := err.(*discordgo.RESTError); ok && discordErr.Response.StatusCode == 404 {
+		var discordErr *discordgo.RESTError
+		if errors.As(err, &discordErr) && discordErr.Response.StatusCode == 404 {
 			log.Printf("User %s not found in guild %s.", userID, guildID)
 			return "Unknown User"
 		}
