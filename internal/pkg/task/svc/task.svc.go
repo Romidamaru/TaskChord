@@ -18,7 +18,7 @@ func NewTaskService(db gossiper.Database) *TaskService {
 }
 
 // CreateTask adds a task to the database
-func (s *TaskService) CreateTask(guildID, userID, title, description, priority string) (int, error) {
+func (s *TaskService) CreateTask(guildID, userID, title, description, priority string, executorID string) (int, error) {
 	var maxTaskIdInGuild int
 
 	// Start a transaction to ensure atomicity
@@ -40,6 +40,7 @@ func (s *TaskService) CreateTask(guildID, userID, title, description, priority s
 			TaskIdInGuild: newTaskIdInGuild,
 			GuildID:       guildID,
 			UserID:        userID,
+			ExecutorID:    executorID,
 			Title:         title,
 			Description:   description,
 			Priority:      ent.Priority(priority),
@@ -76,17 +77,22 @@ func (s *TaskService) UpdateTask(guildID, userID, title, description, priority, 
 		var task ent.Task
 		err := tx.Where("guild_id = ? AND user_id = ? AND task_id_in_guild = ?", guildID, userID, id).First(&task).Error
 		if err != nil {
-			// Return an error if the task does not exist
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("task with ID %s does not exist", id)
 			}
 			return err
 		}
 
-		// Update the task fields
-		task.Title = title
-		task.Description = description
-		task.Priority = ent.Priority(priority)
+		// Update only non-empty fields
+		if title != "" {
+			task.Title = title
+		}
+		if description != "" {
+			task.Description = description
+		}
+		if priority != "" {
+			task.Priority = ent.Priority(priority)
+		}
 
 		// Save the changes
 		if err := tx.Save(&task).Error; err != nil {
@@ -115,14 +121,15 @@ func (s *TaskService) GetTasksByUserID(guildID string, userID string, id string)
 	var tasks []ent.Task
 	var err error
 
-	if id != "" { // Check if id is provided (non-empty string)
-		// If id is provided, fetch tasks with the specific task ID in the guild
+	if id != "" { // If a specific task ID is provided
 		err = s.db.GetDB().
-			Where("user_id = ? AND guild_id = ? AND task_id_in_guild = ?", userID, guildID, id).Find(&tasks).Error
-	} else {
-		// If no id is provided, fetch all tasks for the user in the guild
+			Where("(user_id = ? OR executor_id = ?) AND guild_id = ? AND task_id_in_guild = ?", userID, userID, guildID, id).
+			Find(&tasks).Error
+	} else { // Fetch all tasks for the user (as author or executor) in the guild
 		err = s.db.GetDB().
-			Where("user_id = ? AND guild_id = ?", userID, guildID).Order("task_id_in_guild DESC").Find(&tasks).Error
+			Where("(user_id = ? OR executor_id = ?) AND guild_id = ?", userID, userID, guildID).
+			Order("task_id_in_guild ASC").
+			Find(&tasks).Error
 	}
 
 	return tasks, err

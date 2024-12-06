@@ -40,6 +40,12 @@ func RegisterCommands(s *discordgo.Session) error {
 						},
 					},
 				},
+				{
+					Type:        discordgo.ApplicationCommandOptionUser,
+					Name:        "executor",
+					Description: "Executor of the task",
+					Required:    false,
+				},
 			},
 		},
 		{

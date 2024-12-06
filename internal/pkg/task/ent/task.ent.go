@@ -33,6 +33,7 @@ type Task struct {
 	gorm.Model
 	TaskIdInGuild int      `gorm:"not null" json:"task_id_in_guild"` // Task ID within a guild
 	UserID        string   `gorm:"not null" json:"user_id"`
+	ExecutorID    string   `gorm:"not null" json:"executor_id"`
 	GuildID       string   `gorm:"not null;index" json:"guild_id"`                    // Indexed for grouping tasks by guild
 	Title         string   `gorm:"not null" json:"title"`                             // Title of the task
 	Priority      Priority `gorm:"type:varchar(20);default:'Medium'" json:"priority"` // Priority of the task (High, Medium, Low)

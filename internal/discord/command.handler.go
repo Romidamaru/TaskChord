@@ -9,8 +9,8 @@ import (
 )
 
 // TODO
-// add reminder and deadlines for tasks (optional), estimated time for task (optional)
-// author and executor. Executor and Author can see same task if they bind to it
+// 	add reminder and deadlines for tasks (optional), estimated time for task (optional)
+// 	author and executor. Executor and Author can see same task if they bind to it
 
 type CommandHandler struct {
 	taskController ctrl.TaskController
@@ -37,21 +37,31 @@ func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.Intera
 
 // HandleCreateCommand processes the commands issued by users
 func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Ensure we're handling the `/create` command
 	options := i.ApplicationCommandData().Options
+
+	// Extract required options
 	title := options[0].StringValue()
 	description := options[1].StringValue()
 
-	priority := "Medium"  // Default value
-	if len(options) > 2 { // Check if the priority option is provided
-		priority = options[2].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
+	// Set default values for optional options
+	priority := "Medium"
+	executorID := i.Interaction.Member.User.ID // Default to the creator
+
+	// Process optional options dynamically
+	for _, opt := range options[2:] { // Start processing optional arguments
+		switch opt.Type {
+		case discordgo.ApplicationCommandOptionString:
+			priority = opt.StringValue() // Handle priority
+		case discordgo.ApplicationCommandOptionUser:
+			executorID = opt.UserValue(nil).ID // Handle executor
+		}
 	}
 
-	userID := i.Interaction.Member.User.ID
+	// Create task
+	userID := i.Member.User.ID
 	guildID := i.GuildID
 
-	// Add task to the database using the task service
-	taskIdInGuild, err := h.taskController.CreateTask(guildID, userID, title, description, priority)
+	taskIdInGuild, err := h.taskController.CreateTask(guildID, userID, title, description, priority, executorID)
 	if err != nil {
 		log.Printf("Error creating task: %v", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -64,16 +74,13 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Respond to the user
+	// Respond with success
 	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
-
-	// Create the embed message
 	embed := &discordgo.MessageEmbed{
-		Color:       0x00FF00, // Green color
-		Description: "Task **#" + taskIDStr + " " + title + "** successfully created!",
+		Color:       0x00FF00,
+		Description: fmt.Sprintf("Task **#%s %s** successfully created!", taskIDStr, title),
 	}
 
-	// Respond to the user with the embed
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -113,28 +120,50 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Validate and assign options
+	// Extract the task ID (required)
 	id = options[0].StringValue()
-	if len(options) > 1 {
-		title = options[1].StringValue()
-	}
-	if len(options) > 2 {
-		description = options[2].StringValue()
-	}
-	if len(options) > 3 {
-		priority = options[3].StringValue()
+
+	// Set default values for optional fields
+	priority = "Medium" // Default priority
+	title = ""          // Default empty title
+	description = ""    // Default empty description
+
+	// Process optional fields dynamically
+	for _, opt := range options[1:] { // Skip the first option (task ID)
+		switch opt.Type {
+		case discordgo.ApplicationCommandOptionString:
+			// Handle title, description, and priority
+			switch opt.Name {
+			case "title":
+				title = opt.StringValue()
+			case "description":
+				description = opt.StringValue()
+			case "priority":
+				priority = opt.StringValue()
+			}
+		}
 	}
 
-	// Call the controller to update the task
+	// Validate and assign the title, description, and priority if they are provided
+	if title == "" && description == "" && priority == "" {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Failed to update task. Please provide at least one field (title, description, or priority).",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Call the controller to update the task with the dynamically provided fields
 	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, id)
 	if err != nil {
-		// Customize the response based on the error message
+		// Handle error based on the specific message
 		var responseMessage string
 		switch err.Error() {
 		case "task ID is required":
 			responseMessage = "Failed to update task. Task ID is required."
-		case "at least one field (title, description, or priority) must be provided for update":
-			responseMessage = "Failed to update task. Please provide at least one field (title, description, or priority) to update."
 		case "invalid priority value":
 			responseMessage = "Failed to update task. Priority value must be 'High', 'Medium', or 'Low'."
 		default:
@@ -152,11 +181,11 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Respond to the user with the successful update
+	// Respond with the updated task info
 	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00, // Green color
-		Description: "Task **#" + taskIDStr + " " + title + "** successfully updated!",
+		Description: fmt.Sprintf("Task **#%s %s** successfully updated!", taskIDStr, title),
 	}
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -166,6 +195,37 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 			Flags:  discordgo.MessageFlagsEphemeral,
 		},
 	})
+}
+
+func GetNicknameFromID(userID string, s *discordgo.Session, guildID string) string {
+	if userID == "" {
+		return "Unknown User"
+	}
+	member, err := s.GuildMember(guildID, userID)
+	if err != nil {
+		if discordErr, ok := err.(*discordgo.RESTError); ok && discordErr.Response.StatusCode == 404 {
+			log.Printf("User %s not found in guild %s.", userID, guildID)
+			return "Unknown User"
+		}
+		log.Printf("Error fetching member details for userID %s: %v", userID, err)
+		return "Unknown User"
+	}
+	if member.Nick != "" {
+		return member.Nick
+	}
+	return member.User.Username // Fall back to username if nickname is not set
+}
+
+var nicknameCache = make(map[string]string)
+
+func GetNicknameFromIDWithCache(userID string, s *discordgo.Session, guildID string) string {
+	if nickname, found := nicknameCache[userID]; found {
+		return nickname
+	}
+
+	nickname := GetNicknameFromID(userID, s, guildID)
+	nicknameCache[userID] = nickname
+	return nickname
 }
 
 func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -203,16 +263,25 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		embed.Description = "You have no tasks!"
 	} else {
 		for i, task := range tasks {
-			// Convert TaskIdInGuild (int) to string
 			taskIDStr := strconv.FormatUint(uint64(task.TaskIdInGuild), 10)
 
+			// Use cached nickname retrieval
+			authorNickname := GetNicknameFromIDWithCache(task.UserID, s, guildID)
+			executorNickname := GetNicknameFromIDWithCache(task.ExecutorID, s, guildID)
+
+			description := fmt.Sprintf(
+				"Author: <@%s> (%s)\nExecutor: <@%s> (%s)\nPriority: %s\n**Description:**\n%s",
+				task.UserID, authorNickname,
+				task.ExecutorID, executorNickname,
+				string(task.Priority), task.Description,
+			)
+
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name:   "**#" + taskIDStr + " " + task.Title + "**", // Include task ID in the field name
-				Value:  "Priority: " + string(task.Priority) + "\n**Description:**\n" + task.Description,
+				Name:   "**#" + taskIDStr + " " + task.Title + "**",
+				Value:  description,
 				Inline: false,
 			})
 
-			// Add a separator for all tasks except the last one
 			if i < len(tasks)-1 {
 				embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 					Name:   "\u200B",
