@@ -48,7 +48,7 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 	executorID := i.Interaction.Member.User.ID // Default to the creator
 
 	// Process optional options dynamically
-	for _, opt := range options[2:] { // Start processing optional arguments
+	for _, opt := range options[2:] {
 		switch opt.Type {
 		case discordgo.ApplicationCommandOptionString:
 			priority = opt.StringValue() // Handle priority
@@ -74,18 +74,22 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Respond with success
+	// Create the non-ephemeral message with @mention
 	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00,
 		Description: fmt.Sprintf("Task **#%s %s** successfully created!", taskIDStr, title),
 	}
 
+	// Mention the executor and author
+	mentionMessage := fmt.Sprintf("<@%s>, task **#%s %s** was assigned to you by <@%s>", executorID, taskIDStr, title, userID)
+
+	// Respond with the task creation details and mention message
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-			Flags:  discordgo.MessageFlagsEphemeral,
+			Embeds:  []*discordgo.MessageEmbed{embed},
+			Content: mentionMessage, // Non-ephemeral message
 		},
 	})
 }
@@ -124,16 +128,15 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 	id = options[0].StringValue()
 
 	// Set default values for optional fields
-	priority = "Medium" // Default priority
-	title = ""          // Default empty title
-	description = ""    // Default empty description
-	executorID = userID // Default executor is the user making the request
+	priority = "Medium"
+	title = ""
+	description = ""
+	executorID = userID
 
 	// Process optional fields dynamically
-	for _, opt := range options[1:] { // Skip the first option (task ID)
+	for _, opt := range options[1:] {
 		switch opt.Type {
 		case discordgo.ApplicationCommandOptionString:
-			// Handle title, description, and priority
 			switch opt.Name {
 			case "title":
 				title = opt.StringValue()
@@ -143,7 +146,6 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 				priority = opt.StringValue()
 			}
 		case discordgo.ApplicationCommandOptionUser:
-			// Handle executor (if user is provided)
 			if opt.Name == "executor" {
 				executorID = opt.UserValue(nil).ID
 			}
@@ -162,29 +164,25 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Call the controller to update the task with the dynamically provided fields
+	// Call the controller to update the task
 	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, executorID, id)
 	if err != nil {
-		// Handle error based on the specific message
-		var responseMessage string
-		switch err.Error() {
-		case "task ID is required":
-			responseMessage = "Failed to update task. Task ID is required."
-		case "invalid priority value":
-			responseMessage = "Failed to update task. Priority value must be 'High', 'Medium', or 'Low'."
-		default:
-			responseMessage = "Failed to update task. Please try again later."
-		}
-
 		log.Printf("Error updating task: %v", err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: responseMessage,
+				Content: "Failed to update task. Please try again later.",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		return
+	}
+
+	// If the executor was updated, mention the new executor
+	if executorID != userID {
+		taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
+		mentionMessage := fmt.Sprintf("<@%s>, task **#%s %s** was reassigned to you by <@%s>", executorID, taskIDStr, title, userID)
+		s.ChannelMessageSend(i.ChannelID, mentionMessage)
 	}
 
 	// Respond with the updated task info
