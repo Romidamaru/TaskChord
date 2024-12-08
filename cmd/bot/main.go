@@ -17,7 +17,6 @@ import (
 func main() {
 	token := config.Inst().DiscordToken
 
-	// Initialize the task module
 	taskModule := task.New()
 
 	// Create Discord bot

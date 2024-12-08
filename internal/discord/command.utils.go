@@ -2,6 +2,7 @@ package discord
 
 import "github.com/bwmarrin/discordgo"
 
+// RegisterCommands used for register command, this will be needed once.
 func RegisterCommands(s *discordgo.Session) error {
 	commands := []*discordgo.ApplicationCommand{
 		{
@@ -131,5 +132,21 @@ func RegisterCommands(s *discordgo.Session) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (b *Bot) DeleteCommands() error {
+	cmds, err := b.Session.ApplicationCommands(b.Session.State.User.ID, "")
+	if err != nil {
+		return err
+	}
+
+	for _, cmd := range cmds {
+		err := b.Session.ApplicationCommandDelete(b.Session.State.User.ID, "", cmd.ID)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
