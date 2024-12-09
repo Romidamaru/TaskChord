@@ -1,25 +1,59 @@
 package pkg
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"net/http"
+	"taskchord/internal/pkg/oauth"
 	"taskchord/internal/pkg/task"
 )
 
 type Router struct {
-	taskModel *task.Module
+	taskModel   *task.Module
+	oauthModule *oauth.Module
 }
 
 func NewRouter() *Router {
 	return &Router{
-		taskModel: task.New(),
+		taskModel:   task.New(),
+		oauthModule: oauth.New(),
 	}
 }
 
 func (r *Router) InitREST(router *gin.Engine) {
 	api := router.Group("/api")
 	{
+		// OAuth: Start the Discord authentication flow
+		api.POST("/auth/discord", func(c *gin.Context) {
+			// Generate Discord auth URL
+			authURL, err := r.oauthModule.Controller.GetAuthURL()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Respond with the auth URL
+			c.JSON(http.StatusOK, gin.H{"auth_url": authURL})
+		})
+
+		// Callback for Discord OAuth
+		api.GET("/auth/discord/callback", func(c *gin.Context) {
+			code := c.DefaultQuery("code", "")
+			if code == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code is required"})
+				return
+			}
+
+			// Handle the callback with the provided code
+			userInfo, err := r.oauthModule.Controller.HandleAuthCallback(code)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Respond with the user info
+			c.JSON(http.StatusOK, gin.H{"user_info": userInfo})
+		})
+
 		// Get tasks
 		api.GET("/task", func(c *gin.Context) {
 			guildID := c.Query("guild_id")

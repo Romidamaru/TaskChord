@@ -8,8 +8,11 @@ import (
 )
 
 type Config struct {
-	DiscordToken string
-	DSN          string
+	DiscordToken    string
+	DiscordClientID string
+	DiscordSecret   string
+	DiscordRedirect string
+	DSN             string
 }
 
 var (
@@ -25,8 +28,11 @@ func Inst() *Config {
 		}
 
 		instance = &Config{
-			DiscordToken: getEnv("DISCORD_BOT_TOKEN", "discord"),
-			DSN:          getEnv("DATABASE_URL", "dsn"),
+			DiscordToken:    getEnv("DISCORD_BOT_TOKEN", "discord"),
+			DiscordClientID: getEnv("DISCORD_CLIENT_ID", "discord"),
+			DiscordSecret:   getEnv("DISCORD_SECRET", "discord"),
+			DiscordRedirect: getEnv("DISCORD_REDIRECT_URL", "discord"),
+			DSN:             getEnv("DATABASE_URL", "dsn"),
 		}
 	})
 	return instance
