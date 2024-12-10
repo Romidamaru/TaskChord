@@ -36,15 +36,12 @@ func (h *CommandHandler) HandleCommand(s *discordgo.Session, i *discordgo.Intera
 func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options
 
-	// Extract required options
 	title := options[0].StringValue()
 	description := options[1].StringValue()
 
-	// Set default values for optional options
 	priority := "Medium"
 	executorID := i.Interaction.Member.User.ID // Default to the creator
 
-	// Process optional options dynamically
 	for _, opt := range options[2:] {
 		switch opt.Type {
 		case discordgo.ApplicationCommandOptionString:
@@ -54,7 +51,6 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		}
 	}
 
-	// Create task
 	userID := i.Member.User.ID
 	guildID := i.GuildID
 
@@ -71,22 +67,19 @@ func (h *CommandHandler) handleCreateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Create the non-ephemeral message with @mention
 	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00,
 		Description: fmt.Sprintf("Task **#%s %s** successfully created!", taskIDStr, title),
 	}
 
-	// Mention the executor and author
 	mentionMessage := fmt.Sprintf("<@%s>, task **#%s %s** was assigned to you by <@%s>", executorID, taskIDStr, title, userID)
 
-	// Respond with the task creation details and mention message
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds:  []*discordgo.MessageEmbed{embed},
-			Content: mentionMessage, // Non-ephemeral message
+			Content: mentionMessage,
 		},
 	})
 }
@@ -121,16 +114,13 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Extract the task ID (required)
 	id = options[0].StringValue()
 
-	// Set default values for optional fields
 	priority = "Medium"
 	title = ""
 	description = ""
 	executorID = userID
 
-	// Process optional fields dynamically
 	for _, opt := range options[1:] {
 		switch opt.Type {
 		case discordgo.ApplicationCommandOptionString:
@@ -149,7 +139,6 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		}
 	}
 
-	// Validate and assign the title, description, priority, and executor
 	if title == "" && description == "" && priority == "" && executorID == userID {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -161,7 +150,6 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Call the controller to update the task
 	taskIdInGuild, err := h.taskController.UpdateTask(guildID, userID, title, description, priority, executorID, id)
 	if err != nil {
 		log.Printf("Error updating task: %v", err)
@@ -175,14 +163,12 @@ func (h *CommandHandler) handleUpdateCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// If the executor was updated, mention the new executor
 	if executorID != userID {
 		taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 		mentionMessage := fmt.Sprintf("<@%s>, task **#%s %s** was reassigned to you by <@%s>", executorID, taskIDStr, title, userID)
 		s.ChannelMessageSend(i.ChannelID, mentionMessage)
 	}
 
-	// Respond with the updated task info
 	taskIDStr := strconv.FormatUint(uint64(taskIdInGuild), 10)
 	embed := &discordgo.MessageEmbed{
 		Color:       0x00FF00, // Green color
@@ -215,7 +201,7 @@ func GetNicknameFromID(userID string, s *discordgo.Session, guildID string) stri
 	if member.Nick != "" {
 		return member.Nick
 	}
-	return member.User.Username // Fall back to username if nickname is not set
+	return member.User.Username
 }
 
 var nicknameCache = make(map[string]string)
@@ -236,11 +222,10 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 	var id string
 
 	options := i.ApplicationCommandData().Options
-	if len(options) > 0 { // Check if the id option is provided
-		id = options[0].StringValue() // Guaranteed to be "High", "Medium", or "Low" from the select menu
+	if len(options) > 0 {
+		id = options[0].StringValue()
 	}
 
-	// Retrieve tasks from the database
 	tasks, err := h.taskController.GetTasksByUserID(guildID, userID, id)
 	if err != nil {
 		log.Printf("Error fetching tasks: %v", err)
@@ -254,10 +239,9 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		return
 	}
 
-	// Create embed response
 	embed := &discordgo.MessageEmbed{
 		Title:  "Your Tasks:",
-		Color:  0x00FF00, // Green color
+		Color:  0x00FF00,
 		Fields: []*discordgo.MessageEmbedField{},
 	}
 
@@ -267,7 +251,6 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		for i, task := range tasks {
 			taskIDStr := strconv.FormatUint(uint64(task.TaskIdInGuild), 10)
 
-			// Use cached nickname retrieval
 			authorNickname := GetNicknameFromIDWithCache(task.UserID, s, guildID)
 			executorNickname := GetNicknameFromIDWithCache(task.ExecutorID, s, guildID)
 
@@ -294,7 +277,6 @@ func (h *CommandHandler) handleShowCommand(s *discordgo.Session, i *discordgo.In
 		}
 	}
 
-	// Respond with the embed
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -309,13 +291,11 @@ func (h *CommandHandler) handleDeleteCommand(s *discordgo.Session, i *discordgo.
 	guildID := i.GuildID
 	var id string
 
-	// Retrieve the task ID from the options
 	options := i.ApplicationCommandData().Options
 	if len(options) > 0 {
 		id = options[0].StringValue()
 	}
 
-	// Call the controller to delete the task
 	taskIdInGuild, err := h.taskController.DeleteTask(guildID, userID, id)
 	if err != nil {
 		log.Printf("Error deleting task: %v", err)
@@ -329,7 +309,6 @@ func (h *CommandHandler) handleDeleteCommand(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	// Respond to the user with confirmation
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
