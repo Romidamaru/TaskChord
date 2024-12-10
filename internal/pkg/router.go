@@ -3,19 +3,22 @@ package pkg
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"taskchord/internal/pkg/oauth"
+	"taskchord/internal/pkg/auth"
 	"taskchord/internal/pkg/task"
+	"taskchord/internal/pkg/user"
 )
 
 type Router struct {
 	taskModel   *task.Module
-	oauthModule *oauth.Module
+	userModel   *user.Module
+	oauthModule *auth.Module
 }
 
 func NewRouter() *Router {
 	return &Router{
 		taskModel:   task.New(),
-		oauthModule: oauth.New(),
+		userModel:   user.New(),
+		oauthModule: auth.New(),
 	}
 }
 
@@ -25,7 +28,7 @@ func (r *Router) InitREST(router *gin.Engine) {
 		// OAuth: Start the Discord authentication flow
 		api.POST("/auth/discord", func(c *gin.Context) {
 			// Generate Discord auth URL
-			authURL, err := r.oauthModule.Controller.GetAuthURL()
+			authURL, err := r.oauthModule.AuthController.GetAuthURL()
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -36,6 +39,7 @@ func (r *Router) InitREST(router *gin.Engine) {
 		})
 
 		// Callback for Discord OAuth
+		// Callback for Discord OAuth
 		api.GET("/auth/discord/callback", func(c *gin.Context) {
 			code := c.DefaultQuery("code", "")
 			if code == "" {
@@ -44,14 +48,30 @@ func (r *Router) InitREST(router *gin.Engine) {
 			}
 
 			// Handle the callback with the provided code
-			userInfo, err := r.oauthModule.Controller.HandleAuthCallback(code)
+			userInfo, err := r.oauthModule.AuthController.HandleAuthCallback(c.Writer, c.Request, code)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 
-			// Respond with the user info
-			c.JSON(http.StatusOK, gin.H{"user_info": userInfo})
+			// Check if the user exists in the database
+			user, err := r.userModel.Controller.GetUserByID(userInfo["id"].(string))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking user existence"})
+				return
+			}
+
+			// If the user doesn't exist, save the user in the database
+			if user == nil {
+				err := r.userModel.Controller.AddUser(userInfo["id"].(string), userInfo["username"].(string), userInfo["email"].(string), userInfo["avatar"].(string))
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
+					return
+				}
+			}
+
+			// Redirect the user to the frontend after successful authentication
+			c.Redirect(http.StatusFound, "http://localhost:3000")
 		})
 
 		// Get tasks

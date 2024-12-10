@@ -6,7 +6,9 @@ import (
 	"errors"
 	"golang.org/x/oauth2"
 	"log"
+	"net/http"
 	"taskchord/internal/core/config"
+	"taskchord/internal/pkg/user/ctrl"
 )
 
 var DiscordEndpoint = oauth2.Endpoint{
@@ -15,18 +17,21 @@ var DiscordEndpoint = oauth2.Endpoint{
 }
 
 type AuthService struct {
-	oauthConfig *oauth2.Config
+	oauthConfig    *oauth2.Config
+	userController *ctrl.UserController
 }
 
-func NewAuthService() *AuthService {
+// NewAuthService creates a new AuthService instance
+func NewAuthService(userController *ctrl.UserController) *AuthService {
 	return &AuthService{
 		oauthConfig: &oauth2.Config{
 			ClientID:     config.Inst().DiscordClientID,
 			ClientSecret: config.Inst().DiscordSecret,
-			Endpoint:     DiscordEndpoint, // Use manually defined endpoint
+			Endpoint:     DiscordEndpoint,
 			RedirectURL:  config.Inst().DiscordRedirect,
 			Scopes:       []string{"identify", "email"},
 		},
+		userController: userController,
 	}
 }
 
@@ -35,12 +40,11 @@ func (s *AuthService) GenerateAuthURL() (string, error) {
 	if s.oauthConfig == nil {
 		return "", errors.New("OAuth configuration is missing")
 	}
-	// Generate the URL where users will be redirected to Discord for login
 	return s.oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline), nil
 }
 
 // HandleAuthCallback processes the Discord OAuth callback
-func (s *AuthService) HandleAuthCallback(code string) (map[string]interface{}, error) {
+func (s *AuthService) HandleAuthCallback(w http.ResponseWriter, r *http.Request, code string) (map[string]interface{}, error) {
 	if code == "" {
 		return nil, errors.New("authorization code is missing")
 	}
@@ -62,23 +66,34 @@ func (s *AuthService) HandleAuthCallback(code string) (map[string]interface{}, e
 	defer resp.Body.Close()
 
 	// Decode user information from the response
-	var userInfo map[string]interface{}
+	var userInfo struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Avatar   string `json:"avatar"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
 		log.Printf("Failed to decode user info: %v", err)
 		return nil, errors.New("failed to decode user information")
 	}
 
-	// Optionally, save the user info and token in the database
-	// if err := s.SaveUser(token, userInfo); err != nil {
-	//	log.Printf("Failed to save user: %v", err)
-	// }
+	// Save user information in the database
+	err = s.userController.AddUser(userInfo.ID, userInfo.Username, userInfo.Email, userInfo.Avatar)
+	if err != nil {
+		log.Printf("Failed to save user: %v", err)
+		return nil, errors.New("failed to save user information")
+	}
 
-	return userInfo, nil
+	// Return user information as a map (for internal use if needed)
+	userData := map[string]interface{}{
+		"id":       userInfo.ID,
+		"username": userInfo.Username,
+		"email":    userInfo.Email,
+		"avatar":   userInfo.Avatar,
+	}
+
+	// Redirect to the homepage (or any other page) after successful authentication
+	http.Redirect(w, r, "http://localhost:3000", http.StatusSeeOther)
+
+	return userData, nil
 }
-
-// SaveUser saves the user details and token (optional)
-// func (s *AuthService) SaveUser(token *oauth2.Token, userInfo map[string]interface{}) error {
-// 	log.Printf("Saving user with token: %v and userInfo: %v", token, userInfo)
-// 	// Add logic to save user details and tokens in your database if needed.
-// 	return nil
-// }

@@ -6,6 +6,7 @@ import (
 	gossiper "github.com/pieceowater-dev/lotof.lib.gossiper/v2"
 	"gorm.io/gorm"
 	"taskchord/internal/pkg/task/ent"
+	userEnt "taskchord/internal/pkg/user/ent"
 )
 
 type TaskService struct {
@@ -17,14 +18,42 @@ func NewTaskService(db gossiper.Database) *TaskService {
 	return &TaskService{db: db}
 }
 
+func (s *TaskService) UserExists(userID string) (bool, error) {
+	var user userEnt.User
+	err := s.db.GetDB().Where("user_id = ?", userID).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil // User does not exist
+		}
+		return false, err // Some other error occurred
+	}
+	return true, nil // User exists
+}
+
 // CreateTask adds a task to the database
-func (s *TaskService) CreateTask(guildID, userID, title, description, priority string, executorID string) (int, error) {
+func (s *TaskService) CreateTask(guildID, userID, title, description, priority, executorID string) (int, error) {
 	var maxTaskIdInGuild int
 
 	// Start a transaction to ensure atomicity
 	err := s.db.GetDB().Transaction(func(tx *gorm.DB) error {
+		// Check if the user exists in the database
+		userExists, err := s.UserExists(userID)
+		if err != nil {
+			return fmt.Errorf("error checking if user exists: %v", err)
+		}
+
+		// If the user does not exist, create a new user
+		if !userExists {
+			user := userEnt.User{
+				UserID: userID,
+			}
+			if err := tx.Create(&user).Error; err != nil {
+				return fmt.Errorf("error creating user: %v", err)
+			}
+		}
+
 		// Find the highest TaskIdInGuild for the guild
-		err := tx.Model(&ent.Task{}).
+		err = tx.Model(&ent.Task{}).
 			Where("guild_id = ?", guildID).
 			Select("COALESCE(MAX(task_id_in_guild), 0)").
 			Scan(&maxTaskIdInGuild).Error

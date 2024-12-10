@@ -17,7 +17,7 @@ func NewTaskController(taskService *svc.TaskService) *TaskController {
 }
 
 // CreateTask delegates the task creation to the service layer
-func (c *TaskController) CreateTask(guildID, userID, title, description, priority string, executorID string) (int, error) {
+func (c *TaskController) CreateTask(guildID, userID, title, description, priority, executorID string) (int, error) {
 	// Call the service layer to create the task and return the taskIdInGuild
 	taskIdInGuild, err := c.taskService.CreateTask(guildID, userID, title, description, priority, executorID)
 	if err != nil {
